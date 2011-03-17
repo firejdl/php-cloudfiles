@@ -388,7 +388,7 @@ class CF_Connection
             $e .= "CF_Authentication instance.";
             throw new AuthenticationException($e);
         }
-        $this->cfs_http->setCFAuth($this->cfs_auth, $servicenet=$servicenet);
+        $this->cfs_http->setCFAuth($this->cfs_auth, $servicenet);
         $this->dbug = False;
     }
 
@@ -1465,10 +1465,11 @@ class CF_Container
      * @param int $marker <i>optional</i> subset of names starting at $marker
      * @param string $prefix <i>optional</i> Objects whose names begin with $prefix
      * @param string $path <i>optional</i> only return results under "pathname"
+     * @param boolean $doHead <i>optional</i> load data about the object (metadata, ETags, etc.)
      * @return array array of strings
      * @throws InvalidResponseException unexpected response
      */
-    function get_objects($limit=0, $marker=NULL, $prefix=NULL, $path=NULL)
+    function get_objects($limit=0, $marker=NULL, $prefix=NULL, $path=NULL, $doHead=False)
     {
         list($status, $reason, $obj_array) =
             $this->cfs_http->get_objects($this->name, $limit,
@@ -1482,7 +1483,7 @@ class CF_Container
         }
         $objects = array();
         foreach ($obj_array as $obj) {
-            $tmp = new CF_Object($this, $obj["name"], False, False);
+            $tmp = new CF_Object($this, $obj["name"], False, $doHead);
             $tmp->content_type = $obj["content_type"];
             $tmp->content_length = (float) $obj["bytes"];
             $tmp->set_etag($obj["hash"]);
