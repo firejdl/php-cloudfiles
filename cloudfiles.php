@@ -1584,7 +1584,7 @@ class CF_Container
      */
     private function _cdn_initialize()
     {
-        list($status, $reason, $cdn_enabled, $cdn_ssl_uri, $cdn_uri, $cdn_ttl,
+        @list($status, $reason, $cdn_enabled, $cdn_ssl_uri, $cdn_uri, $cdn_ttl,
              $cdn_log_retention, $cdn_acl_user_agent, $cdn_acl_referrer) =
             $this->cfs_http->head_cdn_container($this->name);
         #if ($status == 401 && $this->_re_auth()) {
@@ -1648,7 +1648,7 @@ class CF_Object
     {
         if ($name[0] == "/") {
             $r = "Object name '".$name;
-            $r .= "' cannot contain begin with a '/' character.";
+            $r .= "' cannot begin with a '/' character.";
             throw new SyntaxException($r);
         }
         if (strlen($name) > MAX_OBJECT_NAME_LEN) {
@@ -2040,6 +2040,47 @@ class CF_Object
             $this->etag = $etag;
         }
         if ($close_fh) { fclose($fp); }
+        return True;
+    }
+
+    /**
+     * Copy an object on the server-side to the specified destination
+     *
+     * Example:
+     * <code>
+     * # ... authentication/connection/container code excluded
+     * # ... see previous examples
+     *
+     * $my_docs = $conn->get_container("documents");
+     * $doc = $my_docs->get_object("README");
+     *
+     * # Copy README to an object named "HELP"
+     * #
+     * $doc->copy("/documents/HELP");
+     * </code>
+     *
+     * @param filename|obj $dest remote path or object to copy $this to
+     * @return boolean <kbd>True</kbd> if data uploaded successfully
+     * @throws SyntaxException missing required parameters
+     * @throws MisMatchedChecksumException server responds with 422 status
+     * @throws InvalidResponseException unexpected response
+     */
+    function copy($dest)
+    {
+        list($status, $reason, $etag) =
+                $this->container->cfs_http->copy_object($this,$dest);
+
+        if ($status == 412) {
+            throw new SyntaxException("Missing Content-Type header");
+        }
+        if ($status == 422) {
+            throw new MisMatchedChecksumException(
+                "Supplied and computed checksums do not match.");
+        }
+        if ($status != 201) {
+            throw new InvalidResponseException("Invalid response (".$status."): "
+                . $this->container->cfs_http->get_error());
+        }
         return True;
     }
 

@@ -129,13 +129,14 @@ class CF_Http
             "HEAD"      => NULL, # HEAD requests
             "PUT_CONT"  => NULL, # PUT container
             "DEL_POST"  => NULL, # DELETE containers/objects, POST objects
+            "COPY"      => NULL, # COPY object
         );
 
         $this->_user_read_progress_callback_func = NULL;
         $this->_user_write_progress_callback_func = NULL;
         $this->_write_callback_type = NULL;
         $this->_text_list = array();
-	$this->_return_list = NULL;
+        $this->_return_list = NULL;
         $this->_account_container_count = 0;
         $this->_account_bytes_used = 0;
         $this->_container_object_count = 0;
@@ -839,6 +840,63 @@ class CF_Http
         return array($return_code,$this->response_reason,$this->_obj_etag);
     }
 
+    # COPY /v1/Account/Container/Object
+    #
+    function copy_object(&$src, &$dest)
+    {
+        if (!is_object($src) || get_class($src) != "CF_Object") {
+            throw new SyntaxException(
+                "Source argument is not a valid CF_Object.");
+        }
+        if (!is_string($dest) && (!is_object($dest) || get_class($dest) != "CF_Object")) {
+            throw new SyntaxException(
+                "Destination argument is not a valid string or CF_Object.");
+        }
+
+        $conn_type = "COPY";
+        $src_url_path = $this->_make_path("STORAGE", $src->container->name,$src->name);
+
+        # $dest can be a CF_Object or a string
+        #
+        if (is_object($dest))
+        {
+            # Metadata on the dest object will overwrite that of the src object
+            #
+            $hdrs = $this->_metadata_headers($dest);
+            $dest_path = $this->_make_path("", $dest->container->name,$dest->name);
+            $hdrs[] = "Destination: " . $dest_path;
+        } else {
+            $split_dest = explode('/', ltrim($dest, '/'), 2);
+            if(count($split_dest) != 2)
+                throw new SyntaxException(
+                    "String used as copy destination was not in the form container/destobject.");
+
+            list($container,$obj_name) = $split_dest;
+            $hdrs[] = "Destination: " . $this->_make_path("", $container,$obj_name);
+        }
+
+        $this->_init($conn_type);
+        $return_code = $this->_send_request($conn_type,$src_url_path,$hdrs);
+
+        if (!$return_code) {
+            $this->error_str .= ": Failed to obtain valid HTTP response.";
+            return array(0,$this->error_str,NULL);
+        }
+        if ($return_code == 412) {
+            $this->error_str = "Missing Content-Type header";
+            return array($return_code,$this->error_str,NULL);
+        }
+        if ($return_code == 422) {
+            $this->error_str = "Derived and computed checksums do not match.";
+            return array($return_code,$this->error_str,NULL);
+        }
+        if ($return_code != 201) {
+            $this->error_str = "Unexpected HTTP return code: $return_code";
+            return array($return_code,$this->error_str,NULL);
+        }
+        return array($return_code,$this->response_reason,$this->_obj_etag);
+    }
+
     # POST /v1/Account/Container/Object
     #
     function update_object(&$obj)
@@ -1207,7 +1265,7 @@ class CF_Http
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, True);
             curl_setopt($ch, CURLOPT_CAINFO, $this->cabundle_path);
         }
-	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, True);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, True);
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
         curl_setopt($ch, CURLOPT_MAXREDIRS, 4);
@@ -1217,11 +1275,10 @@ class CF_Http
         if ($conn_type == "GET_CALL") {
             curl_setopt($ch, CURLOPT_WRITEFUNCTION, array(&$this, '_write_cb'));
         }
-
         if ($conn_type == "PUT_OBJ") {
             curl_setopt($ch, CURLOPT_PUT, 1);
             curl_setopt($ch, CURLOPT_READFUNCTION, array(&$this, '_read_cb'));
-	    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         }
         if ($conn_type == "HEAD") {
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "HEAD");
@@ -1230,11 +1287,16 @@ class CF_Http
         if ($conn_type == "PUT_CONT") {
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
             curl_setopt($ch, CURLOPT_INFILESIZE, 0);
-	    curl_setopt($ch, CURLOPT_NOBODY, 1);
+            curl_setopt($ch, CURLOPT_NOBODY, 1);
         }
         if ($conn_type == "DEL_POST") {
-        	curl_setopt($ch, CURLOPT_NOBODY, 1);
-	}
+            curl_setopt($ch, CURLOPT_NOBODY, 1);
+        }
+        if ($conn_type == "COPY") {
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "COPY");
+            curl_setopt($ch, CURLOPT_INFILESIZE, 0);
+            curl_setopt($ch, CURLOPT_NOBODY, 1);
+        }
         $this->connections[$conn_type] = $ch;
         return;
     }
@@ -1242,7 +1304,7 @@ class CF_Http
     private function _reset_callback_vars()
     {
         $this->_text_list = array();
-	$this->_return_list = NULL;
+        $this->_return_list = NULL;
         $this->_account_container_count = 0;
         $this->_account_bytes_used = 0;
         $this->_container_object_count = 0;
