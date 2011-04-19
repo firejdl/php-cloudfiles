@@ -15,19 +15,20 @@
  * Custom Exceptions for the CloudFiles API
  * @package php-cloudfiles-exceptions
  */
-class SyntaxException extends Exception { }
-class AuthenticationException extends Exception { }
-class InvalidResponseException extends Exception { }
-class NonEmptyContainerException extends Exception { }
-class NoSuchObjectException extends Exception { }
-class NoSuchContainerException extends Exception { }
-class NoSuchAccountException extends Exception { }
-class MisMatchedChecksumException extends Exception { }
-class IOException extends Exception { }
-class CDNNotEnabledException extends Exception { }
-class BadContentTypeException extends Exception { }
-class InvalidUTF8Exception extends Exception { }
-class ConnectionNotOpenException extends Exception { }
+class CloudFilesException extends Exception { }
+class SyntaxException extends CloudFilesException { }
+class AuthenticationException extends CloudFilesException { }
+class InvalidResponseException extends CloudFilesException { }
+class NonEmptyContainerException extends CloudFilesException { }
+class NoSuchObjectException extends CloudFilesException { }
+class NoSuchContainerException extends CloudFilesException { }
+class NoSuchAccountException extends CloudFilesException { }
+class MisMatchedChecksumException extends CloudFilesException { }
+class IOException extends CloudFilesException { }
+class CDNNotEnabledException extends CloudFilesException { }
+class BadContentTypeException extends CloudFilesException { }
+class InvalidUTF8Exception extends CloudFilesException { }
+class ConnectionNotOpenException extends CloudFilesException { }
 
 /* vim: set expandtab tabstop=4 shiftwidth=4 softtabstop=4: */
 
